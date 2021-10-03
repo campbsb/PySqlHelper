@@ -32,8 +32,7 @@ Code tested against Python3.
 
 ## Using in Unit tests
 Here is how to inject an Sqlite backed database into your object
-in unit tests
-scope fixture, and using the backup() method to copy it:
+in unit tests:
 ```
 import pytest
 from sql_helper import SqliteHelper
