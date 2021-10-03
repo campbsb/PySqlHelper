@@ -16,11 +16,14 @@
 
 __author__ = "Steve Campbell"
 
-# This test suite runs for both Sqlite and MySQL
+# This test suite runs for both Sqlite and MySQL.
+# Run it with 'pytest test_sql_helper.py'
+
 # To run it for MySQL:
 # * Start up a MySQl/MariaDB database with an empty database schema
 # * Uncomment the MysqlHelper import line
 # * Update the db() fixture with an appropriate connection URL
+# * Run pytest as above
 
 import re
 import sqlite3

@@ -30,7 +30,7 @@ from sql_helper import SqlHelper
 
 
 class MysqlHelper(SqlHelper):
-    """ Extend the SqlHelper class for SQLite databases """
+    """ Extend the SqlHelper class for MySQL/MariaDB databases """
 
     def connect(self) -> pymysql.Connection:
         """ Connect to the MySQL database specified in the url attribute """
