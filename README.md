@@ -5,8 +5,8 @@ Classes to provide database independent utility methods to
   * row(sql, bind) - extract a single row from the database as a tuple
   * rows(sql, bind) - extract a set of rows as a tuple of dicts
 * Simplify common complex calls -
-  * insert(sql, set)
-  * update(sql, set, where)
+  * insert(sql, attributes)
+  * update(sql, attributes, filters)
   
 This provides a database access abstraction layer allowing for function
 unit tests to test against an in memory SQLite database, despite the production
