@@ -37,6 +37,7 @@ in unit tests:
 import pytest
 from sql_helper import SqliteHelper
  
+@pytest.fixture()
 def db():
     fresh_db = SqliteHelper(url="sqlite://:memory:/")
     # Do setup
