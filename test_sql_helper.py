@@ -21,19 +21,20 @@ __author__ = "Steve Campbell"
 
 # To run it for MySQL:
 # * Start up a MySQl/MariaDB database with an empty database schema
+#   * create database TestDb;
+#   * create user 'test'@'localhost' identified by 'test';
+#   * grant select,insert,update,delete,create,drop on TestDb.* to 'test'@'localhost';
 # * Uncomment the MysqlHelper import line
 # * Update the db() fixture with an appropriate connection URL
 # * Run pytest as above
 
+import pytest
 import re
 import sqlite3
 
-import pytest
-
 from sql_helper import SqlHelper, SqliteHelper
-
-
 # from sql_helper_mysql import MysqlHelper
+
 
 @pytest.fixture
 def db() -> SqlHelper:
@@ -65,7 +66,8 @@ def test_execute_statement_was_executed(db):
 
 
 def test_execute_returns_addressable_by_name(db):
-    row = db.execute("SELECT 1 AS A", options={"RowType": "Dict"}).fetchone()
+    row = db.execute("SELECT 1 AS A", fetch_dicts=True).fetchone()
+    # noinspection PyTypeChecker
     assert row["A"] == 1
 
 
@@ -79,25 +81,25 @@ def test_execute_bind_with_percent(db):
     assert row[0] == 2
 
 
-def test_row_returns_none(db2):
-    row = db2.row("SELECT Id,Value FROM Test WHERE Id=99")
+def test_t_row_returns_none(db2):
+    row = db2.t_row("SELECT Id,Value FROM Test WHERE Id=99")
     assert row is None
 
 
-def test_row_returns_tuple(db2):
-    row = db2.row("SELECT Id,Value FROM Test WHERE Id=?", [1])
+def test_t_row_returns_tuple(db2):
+    row = db2.t_row("SELECT Id,Value FROM Test WHERE Id=?", [1])
     assert row == (1, 'a')
 
 
-def test_row_returns_tuple2(db2):
-    row_id, value = db2.row("SELECT Id,Value FROM Test WHERE Id=?", [1])
+def test_t_row_returns_tuple2(db2):
+    row_id, value = db2.t_row("SELECT Id,Value FROM Test WHERE Id=?", [1])
     assert row_id == 1
     assert value == "a"
 
 
-def test_row_returns_exception(db2):
+def test_t_row_returns_exception(db2):
     with pytest.raises(RuntimeError, match=r"Multiple rows"):
-        db2.row("SELECT * FROM Test")
+        db2.t_row("SELECT * FROM Test")
 
 
 def test_value(db2):

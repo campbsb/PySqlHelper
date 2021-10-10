@@ -40,12 +40,14 @@ import re
 import sqlite3
 import time
 from abc import ABC, abstractmethod
-from typing import List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Sequence
+
+from dbapi2abc import Connection, Cursor
 
 
 class SqlHelper(ABC):
 
-    def __init__(self, url: Optional[str] = None, con=None):
+    def __init__(self, url: Optional[str] = None, con: Optional[Connection] = None):
         """ Initialize.
         Depending on the subclass, we can be provided with
         an open database connection, or a URL to lazy connect.
@@ -63,7 +65,7 @@ class SqlHelper(ABC):
         self._last_bind = None
 
     @property
-    def con(self):
+    def con(self) -> Connection:
         """ Do a lazy connect to the database
         :return: Database connection handle
         """
@@ -72,7 +74,7 @@ class SqlHelper(ABC):
         return self._con
 
     @con.setter
-    def con(self, con):
+    def con(self, con: Connection) -> None:
         """ Inject the database connection post-initialisation
         :param con: The database connection handle to be used.
         :return: None
@@ -80,19 +82,18 @@ class SqlHelper(ABC):
         self._con = con
 
     @abstractmethod
-    def connect(self):
+    def connect(self) -> Connection:
         """ Connect to the database specified in the url attribute.
         :return: Database connection handle
         """
 
+    # noinspection PyTypeChecker
     @abstractmethod
-    def execute(self, sql: str, bind: Optional[list] = None, options: Optional[dict] = None):
+    def execute(self, sql: str, bind: Optional[list] = None, fetch_dicts: bool = False) -> Cursor:
         """ Prepare, bind and execute a statement.
         :param sql: The SQL statement to execute.
         :param bind: List of parameters to be bound into the statement.
-        :param options: Any query specific options.
-        Options include "RowType" - return each row as a "Tuple" (default), or
-        "Dict"
+        :param fetch_dicts: If true, the cursor will fetch rows as dicts, not tuples.
         :return: The cursor.
         """
         self._last_sql = sql
@@ -104,19 +105,35 @@ class SqlHelper(ABC):
          """
         return "SQL: %s, Bind: (%s)" % (self._last_sql, ", ".join(map(str, self._last_bind)))
 
-    def row(self, sql: str, bind: Optional[list] = None, options: Optional[dict] = None)\
-            -> Optional[Union[tuple, dict]]:
-        """ Execute some SQL and return the row as a tuple.
+    def row(self, sql: str, bind: Optional[Sequence] = None) -> Optional[dict]:
+        """ Execute some SQL and return the row as a dict.
         Return None if we don't get a result.
+
+        See also: :meth:`sql_helper.SqlHelper.t_row`
 
         :param sql: The SQL statement to execute.
         :param bind: List of parameters to be bound into the statement.
-        :param options: Set "RowType": "Dict" for the row to be returned as a
-        dict instead of a tuple.
         :raises RuntimeError: If multiple rows are found.
-        :return: None, a tuple of the row, or a dict if specified.
+        :return: None, or a dict of the row.
         """
-        cur = self.execute(sql, bind, options)
+        return self._row(sql, bind, fetch_dicts=True)
+
+    def t_row(self, sql: str, bind: Optional[Sequence] = None) -> Optional[tuple]:
+        """ Execute some SQL and return the row as a tuple.
+        Return None if we don't get a result.
+
+        See also: :meth:`sql_helper.SqlHelper.row`
+
+        :param sql: The SQL statement to execute.
+        :param bind: List of parameters to be bound into the statement.
+        :raises RuntimeError: If multiple rows are found.
+        :return: None, or a tuple of the row, or a dict if specified.
+        """
+        return self._row(sql, bind, fetch_dicts=False)
+
+    def _row(self, sql: str, bind: Optional[Sequence] = None, fetch_dicts: bool = False):
+
+        cur = self.execute(sql, bind, fetch_dicts=fetch_dicts)
         row = cur.fetchone()
         row2 = cur.fetchone()
         if row2:
@@ -124,43 +141,52 @@ class SqlHelper(ABC):
 
         return row
 
-    def value(self, sql: str, bind: Optional[list] = None, options: Optional[dict] = None):
+    def value(self, sql: str, bind: Optional[list] = None):
         """ Execute some SQL and return the value of the
         first field of the first row.
         Return None if we don't get a result.
 
         :param sql: The SQL statement to execute.
         :param bind: List of parameters to be bound into the statement.
-        :param options: currently unused
         :raises RuntimeError: If multiple rows are found.
         :return: The first field of the first row.
         """
-        row = self.row(sql, bind, options)
+        row = self.t_row(sql, bind)
         if row:
             return row[0]
 
-    def rows(self, sql: str, bind: Optional[list] = None, options: Optional[dict] = None) -> Tuple[dict]:
-        """ Execute SQL and return a list of dicts
+    # noinspection PyTypeChecker
+    def rows(self, sql: str, bind: Optional[list] = None) -> Tuple[dict]:
+        """ Execute SQL and return a tuple of dicts
+
+        See also: meth:`sql_helper.SqlHelper.t_rows`
 
         :param sql: The SQL statement to execute.
         :param bind: List of parameters to be bound into the statement.
-        :param options: currently unused
         """
-        options = options or {}
-        options2 = options.copy()
-        options2["RowType"] = options.get("RowType", "Dict")
-        cur = self.execute(sql, bind, options2)
+        cur = self.execute(sql, bind, fetch_dicts=True)
         return tuple(cur.fetchall())
 
-    def column(self, sql: str, bind: Optional[list] = None, options: Optional[dict] = None) -> List:
+    # noinspection PyTypeChecker
+    def t_rows(self, sql: str, bind: Optional[list] = None) -> Tuple[tuple]:
+        """ Execute SQL and return a tuple of tuples
+
+        See also: meth:`sql_helper.SqlHelper.t_rows`
+
+        :param sql: The SQL statement to execute.
+        :param bind: List of parameters to be bound into the statement.
+        """
+        cur = self.execute(sql, bind, fetch_dicts=False)
+        return tuple(cur.fetchall())
+
+    def column(self, sql: str, bind: Optional[list] = None) -> List:
         """ Execute SQL and return a list of the first field
          in each row.
         :param sql: The SQL statement to execute.
         :param bind: List of parameters to be bound into the statement.
-        :param options: currently unused
         :return: List of the first field in each row.
         """
-        cur = self.execute(sql, bind, options)
+        cur = self.execute(sql, bind, fetch_dicts=False)
         column = []
         while True:
             row = cur.fetchone()
@@ -213,7 +239,7 @@ class SqlHelper(ABC):
 class SqliteHelper(SqlHelper):
     """ Extend the SqlHelper class for SQLite databases """
 
-    def connect(self) -> sqlite3.Connection:
+    def connect(self) -> Connection:
         """ Connect to the sqlite3 database specified in the url attribute """
         # Normal URL parsing won't cope with :memory:
         database = re.sub(r"sqlite\d?://", "", self.url)
@@ -221,23 +247,20 @@ class SqliteHelper(SqlHelper):
         con = sqlite3.connect(database)
         return con
 
-    def execute(self, sql: str, bind: Optional[list] = None, options: Optional[dict] = None) -> sqlite3.Cursor:
+    def execute(self, sql: str, bind: Optional[list] = None, fetch_dicts: bool = False) -> Cursor:
         """ Prepare, bind and execute a statement.
 
         See :py:meth:`.SqlHelper.execute`
 
         :param sql: The SQL statement to execute.
         :param bind: List of parameters to be bound into the statement.
-        :param options: Any query specific options.
-        Options include "RowType" - return each row as a "Tuple" (default), or
-        "Dict"
+        :param fetch_dicts: If true, have the cursor fetch rows as dicts rather than tuples.
         :return: The cursor.
         """
         bind = bind or []
-        options = options or {}
-        super().execute(sql, bind, options)
+        super().execute(sql, bind)
         saved_row_factory = self.con.row_factory
-        if options.get("RowType", "Tuple") == "Dict":
+        if fetch_dicts:
             self.con.row_factory = sqlite_dict_factory
 
         cur = self.con.cursor()

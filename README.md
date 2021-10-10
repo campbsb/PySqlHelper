@@ -31,7 +31,7 @@ Example:
 Code tested against Python3.
 
 ## Using in Unit tests
-Here is how to inject an Sqlite backed database into your object
+Here is how to inject a Sqlite backed database into your object
 in unit tests:
 ```
 import pytest

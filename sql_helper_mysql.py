@@ -24,15 +24,15 @@ import re
 from typing import Optional
 from urllib.parse import urlparse
 
+from dbapi2abc import Connection, Cursor
 import pymysql
-
 from sql_helper import SqlHelper
 
 
 class MysqlHelper(SqlHelper):
     """ Extend the SqlHelper class for MySQL/MariaDB databases """
 
-    def connect(self) -> pymysql.Connection:
+    def connect(self) -> Connection:
         """ Connect to the MySQL database specified in the url attribute """
         parsed_url = urlparse(self.url)
         database = re.sub(r"^/", "", parsed_url.path)
@@ -45,16 +45,16 @@ class MysqlHelper(SqlHelper):
         )
         return con
 
-    def execute(self, sql: str, bind: Optional[list] = None, options: Optional[dict] = None) -> pymysql.cursors.Cursor:
+    def execute(self, sql: str, bind: Optional[list] = None, fetch_dicts: bool = False) -> Cursor:
         """ Create a cursor and execute it
         :param sql: The SQL to run. Bind placeholders can be %s or ?'
         :param bind: List of bind parameters.
-        :param options: "RowType": "Tuple" (default), or "Dict"
+        :param fetch_dicts: If true, then return a cursor which will fetch dicts rather than tuples.
         """
         bind = bind or []
-        options = options or {}
-        super().execute(sql, bind, options)
-        if options.get("RowType", None) == "Dict":
+        super().execute(sql, bind)
+        if fetch_dicts:
+            # noinspection PyArgumentList
             cur = self.con.cursor(pymysql.cursors.DictCursor)
         else:
             cur = self.con.cursor()
@@ -62,7 +62,6 @@ class MysqlHelper(SqlHelper):
         sql = self.sql_to_mysql(sql)
         logging.info("Executing %s", self.last_sql())
         cur.execute(sql, bind)
-        #        self.con.row_factory = saved_row_factory
 
         return cur
 
